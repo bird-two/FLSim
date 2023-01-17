@@ -20,6 +20,7 @@ import hydra
 import torch
 import flsim
 from flsim.data.data_sharder import SequentialSharder
+from flsim.data.datasets import build_dataset
 from flsim.interfaces.metrics_reporter import Channel
 from flsim.utils.config_utils import maybe_parse_json_config
 from flsim.utils.example_utils import (
@@ -27,8 +28,8 @@ from flsim.utils.example_utils import (
     DataProvider,
     FLModel,
     MetricsReporter,
-    SimpleConvNet,
 )
+from flsim.models.mlp import MLP
 from hydra.utils import instantiate
 from omegaconf import DictConfig, OmegaConf
 from torchvision import transforms
@@ -39,21 +40,7 @@ IMAGE_SIZE = 32
 
 
 def build_data_provider(local_batch_size, examples_per_user, drop_last: bool = False):
-
-    transform = transforms.Compose(
-        [
-            transforms.Resize(IMAGE_SIZE),
-            transforms.CenterCrop(IMAGE_SIZE),
-            transforms.ToTensor(),
-            transforms.Normalize((0.4914, 0.4822, 0.4465), (0.2023, 0.1994, 0.2010)),
-        ]
-    )
-    train_dataset = CIFAR10(
-        root="../cifar10", train=True, download=True, transform=transform
-    )
-    test_dataset = CIFAR10(
-        root="../cifar10", train=False, download=True, transform=transform
-    )
+    train_dataset, test_dataset = build_dataset(dtype='mnist')
     sharder = SequentialSharder(examples_per_shard=examples_per_user)
     fl_data_loader = DataLoader(
         train_dataset, test_dataset, test_dataset, sharder, local_batch_size, drop_last
@@ -70,7 +57,8 @@ def main(
 ) -> None:
     cuda_enabled = torch.cuda.is_available() and use_cuda_if_available
     device = torch.device(f"cuda:{0}" if cuda_enabled else "cpu")
-    model = SimpleConvNet(in_channels=3, num_classes=10)
+    #model = SimpleConvNet(in_channels=3, num_classes=10)
+    model = MLP(dim_in=28*28, dim_hidden=64, dim_out=10)
     # pyre-fixme[6]: Expected `Optional[str]` for 2nd param but got `device`.
     global_model = FLModel(model, device)
     if cuda_enabled:

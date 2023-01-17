@@ -78,7 +78,7 @@ class DataLoader(IFLDataLoader):
         data_rows: List[Dict[str, Any]] = [self.collate_fn(batch) for batch in dataset]
         for _, (_, user_data) in enumerate(self.sharder.shard_rows(data_rows)):
             batch = {}
-            keys = user_data[0].keys()
+            keys = user_data[0].keys() #bd Hint [2022 01 04] dict_keys(['features', 'labels'])
             for key in keys:
                 attribute = {
                     key: batchify(
@@ -228,6 +228,7 @@ class DataProvider(IFLDataProvider):
         return len(self._train_users)
 
     def get_train_user(self, user_index: int) -> IFLUserData:
+        r'''Get the `IFLUserData` by the user_index'''
         if user_index in self._train_users:
             return self._train_users[user_index]
         else:
@@ -409,7 +410,7 @@ class MetricsReporter(FLMetricsReporter):
         self.set_summary_writer(log_dir=log_dir)
         self._round_to_target = float(1e10)
 
-    def compare_metrics(self, eval_metrics, best_metrics):
+    def compare_metrics(self, eval_metrics: dict, best_metrics: dict):
         print(f"Current eval accuracy: {eval_metrics}%, Best so far: {best_metrics}%")
         if best_metrics is None:
             return True

@@ -120,14 +120,14 @@ class TrainingStage(Enum):
 class IFLMetricsReporter(abc.ABC):
     """Interface that all PyML FLMetricsReporter should implement. Each user
     will have 1 reporter throughout one's entire training. At the beginning of
-    user’s training (i.e. at the start of epoch for a user), the user starts by
+    user's training (i.e. at the start of epoch for a user), the user starts by
     clearing up any aggregation left by calling reset(). After the batch, each
-    user collects one’s own metrics by calling add_batch_metrics() method. When
+    user collects one's own metrics by calling add_batch_metrics() method. When
     all the batches are completed (i.e. at the end of all local epochs for a user),
     a global MetricsReporter (i.e. the MetricsReporter responsible of the whole
     training aggregates all the data by calling aggregate() method, which gets
-    a MetricsReporter of an user who just completed one’s own epoch. Then, after
-    all users’ local epochs are completed, the global MetricsReporter completes
+    a MetricsReporter of an user who just completed one's own epoch. Then, after
+    all users' local epochs are completed, the global MetricsReporter completes
     its global aggregation and report its metrics to given channels for that global
     epoch.
     Note: 1 global epoch consists of several rounds. In each round, we train

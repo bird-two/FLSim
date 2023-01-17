@@ -13,54 +13,40 @@ With this tutorial, you will learn the following key components of FLSim:
 3. Trainer construction
 
     Typical usage example:
-    python3 cifar10_example.py --config-file configs/cifar10_config.json
+    python3 mnist_mlp_example_new.py --config-file configs/mnist_mlp_config.json
 """
 import flsim.configs  # noqa
 import hydra
 import torch
 import flsim
 from flsim.data.data_sharder import SequentialSharder
+from flsim.data.datasets import build_dataset
 from flsim.interfaces.metrics_reporter import Channel
 from flsim.utils.config_utils import maybe_parse_json_config
-from flsim.utils.example_utils import (
-    DataLoader,
+from flsim.utils.example_utils_new import (
     DataProvider,
     FLModel,
     MetricsReporter,
-    SimpleConvNet,
 )
+from flsim.data.partition import build_distribution
+from flsim.models.mlp import MLP
 from hydra.utils import instantiate
 from omegaconf import DictConfig, OmegaConf
-from torchvision import transforms
-from torchvision.datasets.cifar import CIFAR10
 
 
 IMAGE_SIZE = 32
 
 
-def build_data_provider(local_batch_size, examples_per_user, drop_last: bool = False):
+# def build_data_provider(local_batch_size, examples_per_user, drop_last: bool = False):
+#     train_dataset, test_dataset = build_dataset(dtype='mnist')
+#     sharder = SequentialSharder(examples_per_shard=examples_per_user)
+#     fl_data_loader = DataLoader(
+#         train_dataset, test_dataset, test_dataset, sharder, local_batch_size, drop_last
+#     )
+#     data_provider = DataProvider(fl_data_loader)
 
-    transform = transforms.Compose(
-        [
-            transforms.Resize(IMAGE_SIZE),
-            transforms.CenterCrop(IMAGE_SIZE),
-            transforms.ToTensor(),
-            transforms.Normalize((0.4914, 0.4822, 0.4465), (0.2023, 0.1994, 0.2010)),
-        ]
-    )
-    train_dataset = CIFAR10(
-        root="../cifar10", train=True, download=True, transform=transform
-    )
-    test_dataset = CIFAR10(
-        root="../cifar10", train=False, download=True, transform=transform
-    )
-    sharder = SequentialSharder(examples_per_shard=examples_per_user)
-    fl_data_loader = DataLoader(
-        train_dataset, test_dataset, test_dataset, sharder, local_batch_size, drop_last
-    )
-    data_provider = DataProvider(fl_data_loader)
-    print(f"Clients in total: {data_provider.num_train_users()}")
-    return data_provider
+#     print(f"Clients in total: {data_provider.num_train_users()}")
+#     return data_provider
 
 
 def main(
@@ -70,18 +56,21 @@ def main(
 ) -> None:
     cuda_enabled = torch.cuda.is_available() and use_cuda_if_available
     device = torch.device(f"cuda:{0}" if cuda_enabled else "cpu")
-    model = SimpleConvNet(in_channels=3, num_classes=10)
+    #model = SimpleConvNet(in_channels=3, num_classes=10)
+    model = MLP(dim_in=28*28, dim_hidden=64, dim_out=10)
     # pyre-fixme[6]: Expected `Optional[str]` for 2nd param but got `device`.
     global_model = FLModel(model, device)
     if cuda_enabled:
         global_model.fl_cuda()
     trainer = instantiate(trainer_config, model=global_model, cuda_enabled=cuda_enabled)
     print(f"Created {trainer_config._target_}")
-    data_provider = build_data_provider(
-        local_batch_size=data_config.local_batch_size,
-        examples_per_user=data_config.examples_per_user,
-        drop_last=False,
-    )
+    
+    train_dataset, test_dataset = build_dataset(dtype='mnist', data_path='../data/')
+    net_dataidx_map = build_distribution(
+        data_path='../flsim/data/partitionfiles/inuse/', 
+        dtype='mnist', num_users=10, way='dir-u', alpha=1.0
+        )
+    data_provider = DataProvider(train_dataset, test_dataset, net_dataidx_map, data_config.local_batch_size)
 
     metrics_reporter = MetricsReporter([Channel.TENSORBOARD, Channel.STDOUT])
 
